@@ -4,7 +4,7 @@
 // Code parts below that were developed by me can be used for non-commercial use
 // but I am asking to be mentioned as the developer.
 //
-// 4-May-2021
+// 5-May-2021
 //
 // My ESP32 setup:
 //  SDA   - pin 21
@@ -21,6 +21,7 @@
 #define  INT_PIN    32
 #define  SERIAL_BAUD_RATE  115200
 
+#define  DEVICE_I2C_ADDR  0x12
 VL53LX vl53lx(&Wire, XSHUT_PIN);
 
 // Holds latest measured distances (up to 4)
@@ -47,7 +48,7 @@ void setup()
    int i;
    VL53LX_Error rc;
    VL53LX_Version_t ver;
-   uint8_t ProductRevisionMajor, ProductRevisionMinor;
+   uint8_t ProductRevisionMajor, ProductRevisionMinor, byteData;
    VL53LX_DeviceInfo_t devInfo;
    uint64_t Uid;
 
@@ -66,6 +67,8 @@ void setup()
 
    // Configure the VL53LX
    vl53lx.begin();
+   vl53lx.VL53LX_Off();
+   vl53lx.InitSensor(DEVICE_I2C_ADDR);
 
    // Print chip info
    rc = vl53lx.VL53LX_GetVersion(&ver);
@@ -77,15 +80,17 @@ void setup()
    rc = vl53lx.VL53LX_GetUID(&Uid);
    Serial.printf("GetUID: rc=%d, UID=0x%llX\n", rc, Uid);
 
-   vl53lx.VL53LX_Off();
+   // To enable using the below I2CRead function, you need to move its definition in vl53lx_class.h from the Protected section to the Public section
+   rc = vl53lx.VL53LX_I2CRead(DEVICE_I2C_ADDR, 0x010F, &byteData, 1);
+   Serial.printf("I2CRead 0x010F: rc=%d, Model_ID=0x%02X\n", rc, byteData);
+   rc = vl53lx.VL53LX_I2CRead(DEVICE_I2C_ADDR, 0x0110, &byteData, 1);
+   Serial.printf("I2CRead 0x0110: rc=%d, Module_Type=0x%02X\n", rc, byteData);
 
    pinMode(INT_PIN, INPUT_PULLUP);
    attachInterrupt(digitalPinToInterrupt(INT_PIN), intaISR, FALLING);
    intervalTimer = millis();                                            // Set timer
 
-   vl53lx.InitSensor(0x12);
    vl53lx.VL53LX_ClearInterruptAndStartMeasurement();
-
    Serial.println("Ready...");
 }
 
